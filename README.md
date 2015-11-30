@@ -114,10 +114,15 @@ For the 'enable' command, there is an privilege escalation that occurs where a u
 3. received password is empty string
   1. if not first time requested -- early fail
   2. user has attribute `enable = nopassword` if UENABLE is compiled in
-  3. host by ip address has attribute `enable = nopassword` if UENABLE is compiled in
+  3. host by hostname has attribute `enable = nopassword` if UENABLE is compiled in
   4. Request for "Password:" is sent
 4. Check user or DEFAULTUSER has `enableacl = <matching acl>` is not permitted -- early fail
-5. Check if non-empty password
+5. user has attribute `enable = <password_spec>` if UENABLE is compiled in and password matches
+6. host by ip has attribute `enable = <password_spec>` or host by hostname and password matches
+7. using the login-level **N** the NAS is trying to raise itself to (0-14), look for username $enab**N**$
+  1. Uses Configured Password Order for this user if it exists
+8. using the username $enable$ or $enab15$ 
+  1. Uses Configured Password Order for this user if it exists
 
 
 ## Keyword List
@@ -138,8 +143,8 @@ accounting syslog                          # messages will be sent to syslog dae
 ```
 #### logging
 - help: syslog facility level
-- enums: ** auth | cron | daemon | ftp | kern | local0 | local1 | local2 | local3 | local4 | local5 | local6 | local7 | lpr | mail | news | syslog | user | uucp **
-- defaults: daemon
+- options: auth, cron, daemon, ftp, kern, local0, local1, local2, local3, local4, local5, local6, local7, lpr, mail, news, syslog, user, uucp
+- defaults: **daemon**
 - syntax:
 ```
 logging = local6
@@ -164,7 +169,7 @@ default authentication = file /path/to/file
    PAM                    # password is checked against pam library (should be available unless re-compiled out)
    skey                   # one-time password checked against s/key library ( only available if re-compiled to support it)
 ```
-### < host_decl>
+### < host_decl >
 - help: attributes applied specifically to certain network elements whose ip address or hostname matches
 - warning: through F4.0.4.28 their appears to be a bug using hostnames rather than ip addresses. I submitted a bug report.
 - syntax:
@@ -181,15 +186,19 @@ host = device_supplied_name {
 }
 ```
 ### < group_decl >
-- help: users or other groups may be ganged together into a group. User attributes can be applied as a group to simplify configuration. See the < user_decl > to see available keywords under group
+- help: users or other groups may be ganged together into a group. User attributes are applied as a group to simplify configuration. See the < user_decl > to see available keywords under group
 - syntax: 
 ```
 group = my_group_name {
    # a new group with a sorry name
+   <user_attr>*
+   <svc>*
 }
 group = my_subgroup_name {
    # inherit all the attributes of my_group_name first
    member = my_group_name
+   <user_attr>*
+   <svc>*
 }
 ```
 ### < user_decl >
@@ -198,9 +207,113 @@ group = my_subgroup_name {
 ```
 user = my_user_name {
    # a new user with a sorry name
+   <user_attr>*
+   <svc>*
 }
 ```
-#### User Attributes
-##### name = <string>
-##### login = <password_spec>
-#### Service Attributes
+#### < user_attr >
+- help: Use as many of these user attributes inside a user or group structure
+
+##### default service = [ permit | deny ]
+##### name = < string >
+- help: Full Name of the User
+- syntax:
+```
+ name = Johnny Appleseed
+```
+##### login = < password_spec >
+- help : specifies password used for *authentication*
+- syntax:
+```
+ login = <password_spec>
+```
+##### member = < group_name >
+- help : if any attributes are not defined in this parameter block use the user attributes defined in group = < group_name >
+- syntax :
+```
+ member = my_subgroup_name
+```
+##### expires = < string >
+An entry of the form:
+```
+  user = lol {
+      expires = "MMM DD YYYY"
+      password = cleartext "bite me"
+  }
+```
+will cause the user's passwords to become invalid, starting on the expiry date. The only valid date format is e.g. "Jan 1 1980". Case is NOT significant.
+
+A expiry warning message is sent to the user when she logs in, starting at 14 days before the expiration date.
+
+On expiry, the administrator must re-set the expiry date in the configuration file in order to grant continued access. Expiry applies to all password types except "file" passwords.
+
+If passwd(5) files are being used for authentication, the "expires" field in the configuration file is not consulted. Instead, the daemon looks at the "shell" field of the password file entry for a valid expiry date.
+
+If Solaris shadow password files are used for authentication, the "expires" field in the configuration file is not consulted. The expiry field from the shadow password file (if it exists) is used as the expiration date.
+##### arap = cleartext < string >
+- help : Apple Remote Access Password
+- syntax :
+```
+ arap = cleartext "Apple Password? Really?"
+```
+##### chap = cleartext < string >
+- help : Challenge Handshake Authentication Protocol 
+- syntax : 
+```
+ chap = cleartext "What's up chap?"
+```
+##### ms-chap = cleartext < string >
+- help : Microsoft Challenge Handshake Authentication Protocol 
+- syntax : 
+```
+ ms-chap = cleartext "Because...ya know, Microsoft"
+```
+##### pap = cleartext < string > | des < string > | PAM
+- help : Password Authentication Protocol
+- syntax : pick-one
+```
+ pap = cleartext "Pap in the Clear"
+ pap = des XQj4892fjk
+ pap = PAM
+```
+##### opap = cleartext < string > 
+- help : Outbound Pap Password
+- syntax : 
+```
+opap = cleartext "outbound pap password"
+```
+##### global = cleartext < string >
+- help : Password for use in all login type : arap, chap, pap, opap, and login
+- syntax : 
+```
+global = cleartext "global password"
+```
+##### before authorization = < string >
+- help : Prior to Authorization, this program will be run as a sub-process.
+- Details: The user_guide.in file diagrams the specific details.  Please consult the .tar.gz file from [shrubbery.net](ftp://ftp.shrubbery.net/pub/tac_plus/tacacs-F4.0.4.28.tar.gz) for the gory details.  
+- syntax : 
+```
+ before authorization "/usr/local/bin/pre_authorize $user $port $address"
+```
+##### after authorization = < string >
+- help : After Authorization, this program will be run as a sub-process.
+- Details: The user_guide.in file diagrams the specific details.  Please consult the .tar.gz file from [shrubbery.net](ftp://ftp.shrubbery.net/pub/tac_plus/tacacs-F4.0.4.28.tar.gz) for the gory details.  
+- syntax : 
+```
+ # call /usr/local/bin/post_authorize passing it the username, port
+ # and current authorization status.
+ after authorization "/usr/local/bin/post_authorize $user $port $status"
+```
+
+#### < svc >
+##### < svc_auth >
+- help: Define service authorization options, this can get VERY murky.  There's ALOT of details here. Look at each service option to get more information. 
+- syntax: 
+```
+service = <keyword> {
+    default attribute = permit
+    <attr_value_pair>*
+}
+```
+##### < cmd_auth >
+- help: 
