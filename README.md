@@ -1,6 +1,29 @@
 # tac_plus_configure
 Configuring tac_plus from shrubbery networks
 
+## Table of Contents
+- [Reasoning](#reasoning)
+- [Current Online Documentation](#current-online-documentation)
+- [Best Documentation](#best-documentation)
+- [Config File Syntax](#config-file-syntax)
+    - [Comments](#comments)
+    - [Flag Setting](#flag-setting)
+    - [Variable Statement](#variable-statement)
+    - [Structure](#structure)
+- [Various Lookup Orders](#various-lookup-orders)
+    - [Configured Password Order](#configured-password-order)
+    - [Password Comparison Order](#password-comparison-order)
+    - [Recursive Attribute Order](#recursive-attribute-order)
+    - [Key Lookup Order](#key-lookup-order)
+    - [Prompt Lookup Order](#prompt-lookup-order)
+    - [Enable Password Order](#enable-password-order)
+- [Keyword List](#keyword-list)
+    - [Top Level Declarations](#-top_level_decl-)
+    - [Password Specifications](#-password_spec-)
+    - [Host Declarations](#-host_decl-)
+    - [Group Declarations](#-group_decl-)
+    - [User Declarations](#-user_decl-)
+
 ## Reasoning
 I have found that although there are many references to the mythical documentation of this application... no documentation does a fair enough job detailing how to configure tac_plus from shrubbery networks. 
 
@@ -14,7 +37,7 @@ I have found that although there are many references to the mythical documentati
 ## Best Documentation
 The best documentation is unfortunately to look at the code.  Anyone with basic knowledge of the C language shouldn't have much trouble digging through the code to lift out the configuration they want.  So, that's what I'm going to do. If you're reading this and you're not me, you're in luck.  You won't have to read the code. Let's build **tac_plus.conf**
 
-## Config file Syntax
+## Config File Syntax
 ### Comments
 Any line that contains a **#** (bang) is a comment beginning at the mark to the end of the line.
 
