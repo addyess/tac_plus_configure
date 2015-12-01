@@ -108,10 +108,11 @@ The prompt used to before requesting the username:
 2. the host name for host specific prompt
 
 ### Enable Password Order
-For the 'enable' command, there is an privilege escalation that occurs where a user might need an enable password
-1. SKEY if compiled in and user has attribute `skey`
-2. ACECLNT if compiled in and user has attribute `aceclnt`
-3. received password is empty string
+For the 'enable' command, there is an privilege escalation that occurs where a user might need an enable password.
+
+1. SKEY if compiled in and user has attribute **skey**.
+2. ACECLNT if compiled in and user has attribute **aceclnt**.
+3. Received password is empty string
   1. if not first time requested -- early fail
   2. user has attribute `enable = nopassword` if UENABLE is compiled in
   3. host by hostname has attribute `enable = nopassword` if UENABLE is compiled in
