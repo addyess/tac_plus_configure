@@ -17,12 +17,15 @@ Configuring tac_plus from shrubbery networks
     - [Key Lookup Order](#key-lookup-order)
     - [Prompt Lookup Order](#prompt-lookup-order)
     - [Enable Password Order](#enable-password-order)
+    - [Authorization Algorithm](#authorization-algorithm)
 - [Keyword List](#keyword-list)
     - [Top Level Declarations](#-top_level_decl-)
     - [Password Specifications](#-password_spec-)
     - [Host Declarations](#-host_decl-)
     - [Group Declarations](#-group_decl-)
     - [User Declarations](#-user_decl-)
+        - [User Attributes](#-user_attr-)
+        - [Service Attributes](#-svc-)
 
 ## Reasoning
 I have found that although there are many references to the mythical documentation of this application... no documentation does a fair enough job detailing how to configure tac_plus from shrubbery networks. 
@@ -125,6 +128,33 @@ For the 'enable' command, there is an privilege escalation that occurs where a u
 8. using the username $enable$ or $enab15$ 
   1. Uses Configured Password Order for this user if it exists
 
+### Authorization Algorithm
+The complete algorithm by which the daemon processes its configured
+AV pairs against the list the NAS sends, is given below.
+
+Find the user (or group) entry for this service (and protocol), then
+for each AV pair sent from the NAS:
+
+If the AV pair from the NAS is mandatory:
+
+1.  look for an exact attribute,value match in the user's mandatory list. If found, add the AV pair to the output.
+2.  If an exact match doesn't exist, look in the user's optional list for the first attribute match. If found, add the
+NAS AV pair to the output.
+3.  If no attribute match exists, deny the command if the default is to deny, or,
+4.  If the default is permit, add the NAS AV pair to the output.
+
+If the AV pair from the NAS is optional:
+
+5.  look for an exact attribute,value match in the user's mandatory list. If found, add DAEMON's AV pair to output.
+6.  If not found, look for the first attribute match in the user's mandatory list. If found, add DAEMONS's AV pair to output.
+7.  If no mandatory match exists, look for an exact attribute,value pair match among the daemon's optional AV pairs. If found add the DAEMON's matching AV pair to the output.
+8.  If no exact match exists, locate the first attribute match among the daemon's optional AV pairs. If found add the
+DAEMON's matching AV pair to the output.
+9.  If no match is found, delete the AV pair if the default is deny, or 
+10. If the default is permit add the NAS AV pair to the output.
+
+After all AV pairs have been processed, for each mandatory DAEMON AV pair, if there is no attribute match already in the output list, add the AV pair (but add only ONE AV pair for each mandatory attribute).
+
 
 ## Keyword List
 ### < top_level_decl >
@@ -216,6 +246,14 @@ user = my_user_name {
 - help: Use as many of these user attributes inside a user or group structure
 
 ##### default service = [ permit | deny ]
+- help: Specifies whether the default action for a user is authorized to execute every command or excluded from every command.  You may override with the `cmd = <string> { }` attribute. 
+- limits: You may only specify one default service within a block.
+- defaults: If not specified, **deny** will be implied
+- syntax:
+```
+ default service = permit
+ default service = deny
+```
 ##### name = < string >
 - help: Full Name of the User
 - syntax:
@@ -307,14 +345,54 @@ global = cleartext "global password"
 ```
 
 #### < svc >
+- help: Use as many of these service attributes inside a user or group structure
+
 ##### < svc_auth >
-- help: Define service authorization options, this can get VERY murky.  There's ALOT of details here. Look at each service option to get more information. 
+- help: the user authorization request will be sent with AV pairs.  You can permit or deny if the AV pairs sent match these configured.  
+- Algorithm : [Authorization Algorithm](#authorization-algorithm)
+- default attribute: this directive must be specified first in the block
+- keyword(s) : exec, arap, slip, ppp protocol = < proto >, < client defined >
 - syntax: 
 ```
-service = <keyword> {
+service = < keyword(s) > {
     default attribute = permit
     <attr_value_pair>*
 }
 ```
+- attribute value pair
+```
+    [ optional ] < string > = < string >
+    [ optional ] < string > = < string >
+    [ optional ] < string > = < string >
+```
+
 ##### < cmd_auth >
-- help: 
+- help: defines the user's authorization to enter a certain command with specified arguments.
+- defaults: by default, a command block will deny user authorization
+- contents: may only specify `permit <string>` or `deny <string>` where the string argument is an [egrep-style](http://www.cs.columbia.edu/~tal/3261/fall07/handout/egrep_mini-tutorial.htm) regular expression.  
+- syntax: 
+```
+cmd = telnet {
+} 
+# deny user from using the telnet command
+
+cmd = telnet {
+  permit .*
+} 
+# permits the user to use telnet with any arguments
+
+cmd = telnet {
+  permit 192\.168\.0\.[0-9]+
+} 
+# permits the user to telnet to any host in the 192.168.0.[0-255] network
+# denied to telnet to any other argument
+
+cmd = telnet {
+  deny 192\.168\.0\.[0-9]+
+  permit .*
+} 
+# denies the user to telnet to any host in the 192.168.0.[0-255] network
+# permits to telnet to any other argument
+
+
+```
