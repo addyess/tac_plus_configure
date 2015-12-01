@@ -258,7 +258,7 @@ user = my_user_name {
 - help: Full Name of the User
 - syntax:
 ```
- name = Johnny Appleseed
+ name = "Johnny Appleseed"
 ```
 ##### login = < password_spec >
 - help : specifies password used for *authentication*
